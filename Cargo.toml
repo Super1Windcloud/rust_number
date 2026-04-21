@@ -5,5 +5,8 @@ edition = "2024"
 description = "Rust port of number-precision for safer floating-point arithmetic"
 license = "MIT"
 readme = "README.md"
+repository = "https://github.com/Super1Windcloud/rust_number"
+homepage = "https://github.com/Super1Windcloud/rust_number"
+documentation = "https://docs.rs/rust_number"
 
 [dependencies]
