@@ -158,6 +158,29 @@ fn strip_with_precision(value: f64, precision: usize) -> f64 {
     }
 }
 
+fn scaled_i128_to_f64(value: i128, scale_digits: u32) -> f64 {
+    if scale_digits == 0 {
+        return value
+            .to_string()
+            .parse::<f64>()
+            .unwrap_or_else(|_| panic!("failed to convert integer into f64: {value}"));
+    }
+
+    let negative = value.is_negative();
+    let digits = value.abs().to_string();
+    let scale = scale_digits as usize;
+    let body = if digits.len() <= scale {
+        format!("0.{}{}", "0".repeat(scale - digits.len()), digits)
+    } else {
+        let split = digits.len() - scale;
+        format!("{}.{}", &digits[..split], &digits[split..])
+    };
+    let text = if negative { format!("-{body}") } else { body };
+
+    text.parse::<f64>()
+        .unwrap_or_else(|_| panic!("failed to convert scaled integer into f64: {text}"))
+}
+
 fn check_boundary(value: f64) {
     if BOUNDARY_CHECKING_ENABLED.load(Ordering::Relaxed)
         && !(MIN_SAFE_INTEGER..=MAX_SAFE_INTEGER).contains(&value)
@@ -205,22 +228,29 @@ pub fn times<A: Into<NumberInput>, B: Into<NumberInput>>(num1: A, num2: B) -> f6
     let right_fixed = float2fixed(right.clone());
     let base_digits = digit_length(left) + digit_length(right);
     let raw = left_fixed * right_fixed;
-    check_boundary(raw as f64);
-    raw as f64 / 10_f64.powi(base_digits as i32)
+    scaled_i128_to_f64(raw, base_digits)
 }
 
 pub fn plus<A: Into<NumberInput>, B: Into<NumberInput>>(num1: A, num2: B) -> f64 {
     let left: NumberInput = num1.into();
     let right: NumberInput = num2.into();
-    let base = 10_f64.powi(digit_length(left.clone()).max(digit_length(right.clone())) as i32);
-    (times(left, base) + times(right, base)) / base
+    let left_digits = digit_length(left.clone());
+    let right_digits = digit_length(right.clone());
+    let scale_digits = left_digits.max(right_digits);
+    let left_scaled = float2fixed(left) * 10_i128.pow(scale_digits - left_digits);
+    let right_scaled = float2fixed(right) * 10_i128.pow(scale_digits - right_digits);
+    scaled_i128_to_f64(left_scaled + right_scaled, scale_digits)
 }
 
 pub fn minus<A: Into<NumberInput>, B: Into<NumberInput>>(num1: A, num2: B) -> f64 {
     let left: NumberInput = num1.into();
     let right: NumberInput = num2.into();
-    let base = 10_f64.powi(digit_length(left.clone()).max(digit_length(right.clone())) as i32);
-    (times(left, base) - times(right, base)) / base
+    let left_digits = digit_length(left.clone());
+    let right_digits = digit_length(right.clone());
+    let scale_digits = left_digits.max(right_digits);
+    let left_scaled = float2fixed(left) * 10_i128.pow(scale_digits - left_digits);
+    let right_scaled = float2fixed(right) * 10_i128.pow(scale_digits - right_digits);
+    scaled_i128_to_f64(left_scaled - right_scaled, scale_digits)
 }
 
 pub fn divide<A: Into<NumberInput>, B: Into<NumberInput>>(num1: A, num2: B) -> f64 {
