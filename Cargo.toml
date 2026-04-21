@@ -2,5 +2,8 @@
 name = "rust_number"
 version = "0.1.0"
 edition = "2024"
+description = "Rust port of number-precision for safer floating-point arithmetic"
+license = "MIT"
+readme = "README.md"
 
 [dependencies]
